@@ -33,6 +33,9 @@ export default function StepTwo({ result, experiences, setExperiences, onContinu
   const [enriching, setEnriching] = useState<string | null>(null);
   const [recLoading, setRecLoading] = useState<number | null>(null);
   const [recSuggestions, setRecSuggestions] = useState<Record<number, RecSuggestion>>({});
+  const [recNotes, setRecNotes] = useState<Record<number, string>>({});
+  const [regenerating, setRegenerating] = useState(false);
+  const [regeneratedCV, setRegeneratedCV] = useState<string | null>(null);
 
   async function applyRecommendation(rec: string, index: number) {
     setRecLoading(index);
@@ -103,6 +106,29 @@ export default function StepTwo({ result, experiences, setExperiences, onContinu
     }
   }
 
+  async function regenerateCV() {
+    setRegenerating(true);
+    setRegeneratedCV(null);
+    try {
+      const res = await fetch("/api/regenerate-cv", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          optimizedCV: result.optimizedCV,
+          recommendations: result.recommendations,
+          userNotes: result.recommendations.map((_, i) => recNotes[i] || ""),
+          keywords: result.keywords,
+        }),
+      });
+      const data = await res.json();
+      if (data.regeneratedCV) setRegeneratedCV(data.regeneratedCV);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setRegenerating(false);
+    }
+  }
+
   function buildFinalCV() {
     let cv = result.optimizedCV;
     experiences.forEach((exp, i) => {
@@ -160,7 +186,7 @@ export default function StepTwo({ result, experiences, setExperiences, onContinu
           <h3 className="text-xs font-semibold text-cyan-400 uppercase tracking-wide mb-2">
             Recomendaciones
           </h3>
-          <ul className="space-y-3">
+          <ul className="space-y-4">
             {result.recommendations.map((r, i) => (
               <li key={i} className="text-sm text-slate-300">
                 <div className="flex items-start gap-2">
@@ -208,9 +234,55 @@ export default function StepTwo({ result, experiences, setExperiences, onContinu
                     )}
                   </div>
                 )}
+                <div className="mt-2 ml-4">
+                  <textarea
+                    value={recNotes[i] || ""}
+                    onChange={(e) => setRecNotes((prev) => ({ ...prev, [i]: e.target.value }))}
+                    rows={2}
+                    placeholder="¿Qué cambios aplicaste para esta recomendación? (opcional)"
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500 resize-none"
+                  />
+                </div>
               </li>
             ))}
           </ul>
+
+          <div className="mt-4 flex justify-end">
+            <button
+              onClick={regenerateCV}
+              disabled={regenerating}
+              className="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-500 hover:to-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-semibold text-sm text-white transition-all shadow-lg flex items-center gap-2"
+            >
+              {regenerating ? (
+                <>
+                  <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Regenerando...
+                </>
+              ) : (
+                "✨ Regenerar CV con mis cambios"
+              )}
+            </button>
+          </div>
+
+          {regeneratedCV && (
+            <div className="mt-4 bg-slate-900/80 border border-purple-800 rounded-xl p-5">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-semibold text-purple-400 uppercase tracking-wide">CV Regenerado con tus cambios</p>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(regeneratedCV);
+                  }}
+                  className="text-xs text-slate-400 hover:text-white border border-slate-700 rounded-lg px-2 py-1 transition-colors"
+                >
+                  Copiar
+                </button>
+              </div>
+              <pre className="text-sm text-slate-200 whitespace-pre-wrap font-sans">{regeneratedCV}</pre>
+            </div>
+          )}
         </div>
       </div>
 
