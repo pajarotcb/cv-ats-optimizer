@@ -6,13 +6,34 @@ import type { OptimizeResult } from "@/app/page";
 type Props = {
   finalCV: string;
   result: OptimizeResult;
+  jobPosting: string;
   onBack: () => void;
   onRestart: () => void;
 };
 
-export default function StepThree({ finalCV, result, onBack, onRestart }: Props) {
+export default function StepThree({ finalCV, result, jobPosting, onBack, onRestart }: Props) {
   const [copied, setCopied] = useState(false);
   const [editableCV, setEditableCV] = useState(finalCV);
+  const [reevaluating, setReevaluating] = useState(false);
+  const [reevalResult, setReevalResult] = useState<OptimizeResult | null>(null);
+
+  async function reevaluate() {
+    setReevaluating(true);
+    setReevalResult(null);
+    try {
+      const res = await fetch("/api/optimize-cv", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jobPosting, cvText: editableCV }),
+      });
+      const data = await res.json();
+      if (!data.error) setReevalResult(data);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setReevaluating(false);
+    }
+  }
 
   function copyToClipboard() {
     navigator.clipboard.writeText(editableCV);
@@ -30,9 +51,10 @@ export default function StepThree({ finalCV, result, onBack, onRestart }: Props)
     URL.revokeObjectURL(url);
   }
 
+  const activeResult = reevalResult ?? result;
   const scoreColor =
-    result.atsScore >= 75 ? "text-green-400" :
-    result.atsScore >= 50 ? "text-yellow-400" : "text-red-400";
+    activeResult.atsScore >= 75 ? "text-green-400" :
+    activeResult.atsScore >= 50 ? "text-yellow-400" : "text-red-400";
 
   return (
     <div className="space-y-6">
@@ -41,14 +63,30 @@ export default function StepThree({ finalCV, result, onBack, onRestart }: Props)
         <div className="flex items-center gap-6">
           <div>
             <p className="text-xs text-slate-400 uppercase tracking-wide">Score ATS</p>
-            <p className={`text-3xl font-bold ${scoreColor}`}>{result.atsScore}%</p>
+            <p className={`text-3xl font-bold ${scoreColor}`}>{activeResult.atsScore}%</p>
+            {reevalResult && <p className="text-xs text-purple-400 mt-0.5">Re-evaluado</p>}
           </div>
           <div>
-            <p className="text-xs text-slate-400 uppercase tracking-wide">Keywords incorporadas</p>
-            <p className="text-3xl font-bold text-cyan-400">{result.keywords.length}</p>
+            <p className="text-xs text-slate-400 uppercase tracking-wide">Keywords</p>
+            <p className="text-3xl font-bold text-cyan-400">{activeResult.keywords.length}</p>
           </div>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-3 flex-wrap">
+          <button
+            onClick={reevaluate}
+            disabled={reevaluating}
+            className="px-4 py-2 bg-purple-700 hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl text-sm font-medium transition-colors flex items-center gap-2"
+          >
+            {reevaluating ? (
+              <>
+                <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Evaluando...
+              </>
+            ) : "Re-evaluar ATS"}
+          </button>
           <button
             onClick={copyToClipboard}
             className="px-4 py-2 bg-slate-700 hover:bg-slate-600 border border-slate-600 rounded-xl text-sm font-medium transition-colors"
@@ -81,25 +119,28 @@ export default function StepThree({ finalCV, result, onBack, onRestart }: Props)
       {/* Keywords used */}
       <div className="bg-slate-800/60 border border-slate-700 rounded-2xl p-5">
         <h3 className="text-xs font-semibold text-cyan-400 uppercase tracking-wide mb-3">
-          Keywords ATS incorporadas en el CV
+          Keywords ATS {reevalResult ? "— Re-evaluación" : "incorporadas en el CV"}
         </h3>
-        <div className="flex flex-wrap gap-2">
-          {result.keywords.map((k) => (
-            <span
-              key={k}
-              className={`text-xs px-2 py-1 rounded-full border ${
-                result.keywordsFound.includes(k)
-                  ? "bg-green-900/40 border-green-700 text-green-300"
-                  : "bg-cyan-900/40 border-cyan-700 text-cyan-300"
-              }`}
-            >
-              {k}
-            </span>
-          ))}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <p className="text-xs text-green-400 font-semibold mb-2">Encontradas en el CV</p>
+            <div className="flex flex-wrap gap-2">
+              {activeResult.keywordsFound.map((k) => (
+                <span key={k} className="bg-green-900/40 border border-green-700 text-green-300 text-xs px-2 py-1 rounded-full">{k}</span>
+              ))}
+              {activeResult.keywordsFound.length === 0 && <span className="text-slate-500 text-xs">Ninguna</span>}
+            </div>
+          </div>
+          <div>
+            <p className="text-xs text-red-400 font-semibold mb-2">Faltantes</p>
+            <div className="flex flex-wrap gap-2">
+              {activeResult.keywordsMissing.map((k) => (
+                <span key={k} className="bg-red-900/40 border border-red-700 text-red-300 text-xs px-2 py-1 rounded-full">{k}</span>
+              ))}
+              {activeResult.keywordsMissing.length === 0 && <span className="text-slate-500 text-xs">Ninguna — ¡excelente!</span>}
+            </div>
+          </div>
         </div>
-        <p className="text-xs text-slate-500 mt-2">
-          <span className="text-green-400">Verde</span> = ya estaban · <span className="text-cyan-400">Azul</span> = agregadas por la IA
-        </p>
       </div>
 
       {/* Navigation */}

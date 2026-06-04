@@ -31,7 +31,12 @@ Realiza el siguiente análisis y transformación:
 
 3. SCORE ATS ESTIMADO: Da un porcentaje estimado de match con el puesto (0-100%).
 
-4. RECOMENDACIONES: Lista 5 sugerencias concretas y creíbles para mejorar el CV. Cada recomendación debe tener exactamente 2 oraciones: la primera describe el problema detectado, la segunda dice exactamente qué hacer. Tono directo, sin palabras de relleno. El candidato tiene ~22 años, las sugerencias deben ser alcanzables y realistas para alguien en sus primeras experiencias.
+4. RECOMENDACIONES: Lista 5 sugerencias concretas para mejorar el CV en función del puesto cargado. Reglas estrictas:
+   - Cada sugerencia debe indicar en qué SECCIÓN del CV aplica: Datos personales, Perfil profesional, Educación, Experiencia laboral, o Habilidades.
+   - La mejora sugerida debe ser coherente con esa sección. No sugieras habilidades técnicas en la sección de datos personales, ni datos de contacto en habilidades, etc.
+   - Cada sugerencia debe estar directamente relacionada con los requisitos del puesto cargado, no ser genérica.
+   - Formato de cada sugerencia: "[SECCIÓN] Problema detectado. Qué hacer exactamente." Dos oraciones, tono directo.
+   - El candidato tiene ~22 años, las sugerencias deben ser alcanzables y realistas.
 
 Responde en formato JSON con esta estructura:
 {

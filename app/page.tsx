@@ -95,6 +95,7 @@ export default function Home() {
           <StepThree
             finalCV={finalCV}
             result={result!}
+            jobPosting={jobPosting}
             onBack={() => setStep(2)}
             onRestart={() => {
               setStep(1);
