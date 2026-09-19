@@ -38,13 +38,13 @@ Respondé solo con el texto del CV mejorado, sin JSON, sin explicaciones adicion
 
   try {
     const message = await client.messages.create({
-      model: "claude-sonnet-4-6",
+      model: "claude-sonnet-5",
       max_tokens: 4096,
       messages: [{ role: "user", content: prompt }],
     });
 
-    const content = message.content[0];
-    if (content.type !== "text") {
+    const content = message.content.find((b) => b.type === "text");
+    if (!content) {
       return NextResponse.json({ error: "Error en respuesta" }, { status: 500 });
     }
 

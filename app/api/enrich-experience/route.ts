@@ -36,21 +36,35 @@ Responde en formato JSON:
   "tip": "consejo breve sobre esta experiencia"
 }`;
 
-  const message = await client.messages.create({
-    model: "claude-sonnet-4-6",
-    max_tokens: 1024,
-    messages: [{ role: "user", content: prompt }],
-  });
+  try {
+    const message = await client.messages.create({
+      model: "claude-sonnet-5",
+      max_tokens: 1024,
+      system: "Respondé exclusivamente con el objeto JSON solicitado, sin texto adicional, sin explicaciones y sin bloques de código markdown (nada de ```).",
+      messages: [{ role: "user", content: prompt }],
+    });
 
-  const content = message.content[0];
-  if (content.type !== "text") {
-    return NextResponse.json({ error: "Error en respuesta" }, { status: 500 });
+    const content = message.content.find((b) => b.type === "text");
+    if (!content) {
+      return NextResponse.json({ error: "Error en respuesta" }, { status: 500 });
+    }
+
+    const jsonMatch = content.text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.error("enrich-experience: respuesta sin JSON:", content.text);
+      return NextResponse.json({ error: "Error parseando respuesta" }, { status: 500 });
+    }
+
+    let result;
+    try {
+      result = JSON.parse(jsonMatch[0]);
+    } catch (parseErr) {
+      console.error("enrich-experience: JSON inválido:", content.text, parseErr);
+      return NextResponse.json({ error: "Error parseando respuesta" }, { status: 500 });
+    }
+    return NextResponse.json(result);
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
-
-  const jsonMatch = content.text.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
-    return NextResponse.json({ error: "Error parseando respuesta" }, { status: 500 });
-  }
-
-  return NextResponse.json(JSON.parse(jsonMatch[0]));
 }

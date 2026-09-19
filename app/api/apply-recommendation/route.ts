@@ -31,22 +31,31 @@ Respondé en formato JSON:
 
   try {
     const message = await client.messages.create({
-      model: "claude-sonnet-4-6",
+      model: "claude-sonnet-5",
       max_tokens: 1024,
+      system: "Respondé exclusivamente con el objeto JSON solicitado, sin texto adicional, sin explicaciones y sin bloques de código markdown (nada de ```).",
       messages: [{ role: "user", content: prompt }],
     });
 
-    const content = message.content[0];
-    if (content.type !== "text") {
+    const content = message.content.find((b) => b.type === "text");
+    if (!content) {
       return NextResponse.json({ error: "Error en respuesta" }, { status: 500 });
     }
 
     const jsonMatch = content.text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
+      console.error("apply-recommendation: respuesta sin JSON:", content.text);
       return NextResponse.json({ error: "Error parseando respuesta" }, { status: 500 });
     }
 
-    return NextResponse.json(JSON.parse(jsonMatch[0]));
+    let result;
+    try {
+      result = JSON.parse(jsonMatch[0]);
+    } catch (parseErr) {
+      console.error("apply-recommendation: JSON inválido:", content.text, parseErr);
+      return NextResponse.json({ error: "Error parseando respuesta" }, { status: 500 });
+    }
+    return NextResponse.json(result);
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : String(e);
     return NextResponse.json({ error: msg }, { status: 500 });
